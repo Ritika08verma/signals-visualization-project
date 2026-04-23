@@ -1,0 +1,170 @@
+print("Program started")
+import numpy as np
+import matplotlib.pyplot as plt
+from tkinter import *
+from tkinter import filedialog
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+
+# -----------------------------
+# Dark theme settings
+# -----------------------------
+BG_COLOR = "#1e1e1e"
+FG_COLOR = "#ffffff"
+BTN_COLOR = "#333333"
+
+# -----------------------------
+# Main window
+# -----------------------------
+root = Tk()
+root.title("Signals & Systems Visualizer")
+root.geometry("1000x600")
+root.configure(bg=BG_COLOR)
+
+t = np.linspace(-10, 10, 1000)
+
+# -----------------------------
+# Generate signal
+# -----------------------------
+def generate_signal():
+    amp = amp_slider.get()
+    amp_shift = amp_shift_slider.get()
+    time_shift = shift_slider.get()
+    time_scale = scale_slider.get()
+    signal_type = signal_var.get()
+    reverse = reverse_var.get()
+
+    if time_scale == 0:
+        time_scale = 1
+
+    t_scaled = t / time_scale
+
+    # Time reversal
+    if reverse:
+        t_scaled = -t_scaled
+
+    # -----------------------------
+    # Signal selection
+    # -----------------------------
+    if signal_type == "Sine":
+        x = np.sin(t)
+        x_mod = np.sin(t_scaled - time_shift)
+
+    elif signal_type == "Impulse":
+        x = np.zeros_like(t)
+        x[len(t)//2] = 1   # impulse at center
+
+        x_mod = np.zeros_like(t_scaled)
+        index = len(t_scaled)//2 - int(time_shift*50)  # shift effect
+
+        if 0 <= index < len(t_scaled):
+            x_mod[index] = amp   # apply amplitude scaling
+
+    elif signal_type == "Step":
+        x = np.heaviside(t, 1)
+        x_mod = np.heaviside(t_scaled - time_shift, 1)
+
+    elif signal_type == "Ramp":
+        x = np.maximum(t, 0)
+        x_mod = np.maximum(t_scaled - time_shift, 0)
+
+    elif signal_type == "Exponential":
+        x = np.exp(-np.abs(t))
+        x_mod = np.exp(-np.abs(t_scaled - time_shift))
+
+    # Apply amplitude operations
+    x_mod = amp * x_mod + amp_shift
+
+    # -----------------------------
+    # Plot
+    # -----------------------------
+    ax.clear()
+
+    ax.set_facecolor("#2b2b2b")
+    fig.patch.set_facecolor("#1e1e1e")
+
+    ax.plot(t, x, label="Original", color="cyan")
+    ax.plot(t, x_mod, linestyle="--", label="Transformed", color="yellow")
+
+    ax.set_title(f"{signal_type} Signal", color=FG_COLOR)
+    ax.set_xlabel("Time", color=FG_COLOR)
+    ax.set_ylabel("Amplitude", color=FG_COLOR)
+
+    ax.tick_params(colors=FG_COLOR)
+    ax.legend()
+    ax.grid(True)
+
+    canvas.draw()
+
+# -----------------------------
+# Save graph function
+# -----------------------------
+def save_graph():
+    file = filedialog.asksaveasfilename(defaultextension=".png",
+                                        filetypes=[("PNG files", "*.png")])
+    if file:
+        fig.savefig(file)
+
+# -----------------------------
+# Plot setup
+# -----------------------------
+fig, ax = plt.subplots(figsize=(5, 4))
+canvas = FigureCanvasTkAgg(fig, master=root)
+canvas.get_tk_widget().pack(side=RIGHT, fill=BOTH, expand=1)
+
+# -----------------------------
+# Controls frame
+# -----------------------------
+controls = Frame(root, bg=BG_COLOR)
+controls.pack(side=LEFT, padx=20, pady=20)
+
+# Signal selection
+signal_var = StringVar(value="Sine")
+
+Label(controls, text="Select Signal", bg=BG_COLOR, fg=FG_COLOR).pack()
+
+signals = ["Sine", "Impulse", "Step", "Ramp", "Exponential"]
+for s in signals:
+    Radiobutton(controls, text=s, variable=signal_var, value=s,
+                bg=BG_COLOR, fg=FG_COLOR, selectcolor="#444444").pack(anchor=W)
+
+# Amplitude scaling
+Label(controls, text="Amplitude Scaling", bg=BG_COLOR, fg=FG_COLOR).pack(pady=5)
+amp_slider = Scale(controls, from_=1, to=5, orient=HORIZONTAL,
+                   bg=BG_COLOR, fg=FG_COLOR)
+amp_slider.set(1)
+amp_slider.pack()
+
+# Amplitude shifting
+Label(controls, text="Amplitude Shift", bg=BG_COLOR, fg=FG_COLOR).pack(pady=5)
+amp_shift_slider = Scale(controls, from_=-5, to=5, orient=HORIZONTAL,
+                         bg=BG_COLOR, fg=FG_COLOR)
+amp_shift_slider.set(0)
+amp_shift_slider.pack()
+
+# Time shifting
+Label(controls, text="Time Shift", bg=BG_COLOR, fg=FG_COLOR).pack(pady=5)
+shift_slider = Scale(controls, from_=-5, to=5, orient=HORIZONTAL,
+                     bg=BG_COLOR, fg=FG_COLOR)
+shift_slider.set(0)
+shift_slider.pack()
+
+# Time scaling
+Label(controls, text="Time Scaling", bg=BG_COLOR, fg=FG_COLOR).pack(pady=5)
+scale_slider = Scale(controls, from_=-5, to=5, orient=HORIZONTAL,
+                     bg=BG_COLOR, fg=FG_COLOR)
+scale_slider.set(1)
+scale_slider.pack()
+
+# Time reversal toggle
+reverse_var = IntVar()
+Checkbutton(controls, text="Time Reversal", variable=reverse_var,
+            bg=BG_COLOR, fg=FG_COLOR, selectcolor="#444444").pack(pady=10)
+
+# Buttons
+Button(controls, text="Generate Signal", command=generate_signal,
+       bg=BTN_COLOR, fg=FG_COLOR).pack(pady=10)
+
+Button(controls, text="Save Graph", command=save_graph,
+       bg=BTN_COLOR, fg=FG_COLOR).pack(pady=5)
+
+root.mainloop()
